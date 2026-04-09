@@ -24,12 +24,14 @@ chmod +x quick-start.sh
 ```
 
 ## 架构
-  Day 0: 节点初始化（禁用 Swap、SELinux、防火墙、内核模块）
+
+  Day 0: 节点初始化（禁用 Swap、SELinux、防火墙、内核模块)
   Day 0: 依赖安装（CRI-O、Kubeadm、Kubelet）
   Day 0: 控制平面初始化 + Calico CNI
   Day 0: 工作节点加入集群
 
 ## 已知局限
+
   单 Master 拓扑（HA 需引入 kube-vip）
   2核4G 虚拟化环境下启动较慢（属正常现象）
   使用 iptables 而非 eBPF（为兼容旧内核）
