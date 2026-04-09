@@ -1,0 +1,66 @@
+---
+# 内核调优参数
+k8s_sysctls:
+  - { name: net.bridge.bridge-nf-call-iptables, value: "1" }
+  - { name: net.bridge.bridge-nf-call-ip6tables, value: "1" }
+  - { name: net.ipv4.ip_forward, value: "1" }
+  - { name: net.ipv4.conf.all.forwarding, value: "1" }
+
+# 禁用 swap 开关（方便调试时临时关闭）
+k8s_disable_swap: true
+
+# 防火墙配置
+k8s_disable_firewalld: true
+
+# sysctl 配置文件路径
+k8s_sysctl_conf_path: /etc/sysctl.d/k8s.conf
+
+# 模块持久化
+k8s_modules_load:
+  - br_netfilter
+
+# k8s组件版本
+k8s_version: 1.35.3
+
+# podman版本
+podman_version: 6:5.6.0
+
+# cri-o版本
+crio_version: 1.35.1
+
+# k8s node组件
+k8s_node_packages:
+  - kubelet-{{ k8s_version }}
+  - kubeadm-{{ k8s_version }}
+  - kubectl-{{ k8s_version }}
+  - cri-o-{{ crio_version }}
+  - cri-tools
+  - podman
+  - podman-docker
+
+# 镜像拉取地址
+k8s_core_repo: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/registry.k8s.io
+
+# pause沙箱版本
+pause_version: 3.10.1
+
+# crio/kubelet软件仓库
+yum_repo_templates:
+  - name: kubernetes-core
+    src: kubernetes.repo.j2
+    dest: kubernetes.repo
+  - name: cri-o-runtime
+    src: cri-o.repo.j2
+    dest: cri-o.repo
+
+# crio沙箱
+crio_template_configs:
+  - name: pause-image
+    src: 20-pause.conf.j2
+    dest: 20-pause.conf
+
+# crio仓库
+registry_template_configs:
+  - name: registries-mirror
+    src: 99-registries.conf.j2
+    dest: 99-registries.conf

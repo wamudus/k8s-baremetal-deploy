@@ -1,0 +1,63 @@
+---
+- name: Install and setup cluster dependencies
+  hosts: k8s_nodes
+  tasks:
+    # 为目标主机同步k8s/crio仓库模板
+    - name: Copy repo to /etc/yum.repos.d/
+      ansible.builtin.template:
+        src: "{{ playbook_dir | dirname }}/template/repos/{{ item.src }}"
+        mode: "0644"
+        dest: /etc/yum.repos.d/{{ item.dest }}
+      loop: "{{ yum_repo_templates }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # 安装必要组件与容器运行时
+    - name: Install dependences for kubernetes cluster
+      ansible.builtin.dnf:
+        name: "{{ k8s_node_packages }}"
+        state: present
+        allow_downgrade: true
+
+    # 起服务cri-o
+    - name: Start CRI-O service
+      ansible.builtin.systemd:
+        name: crio
+        state: started
+        enabled: true
+
+    # 重载沙箱（pause）镜像
+    - name: Configure CRI-O pause image for domestic network
+      ansible.builtin.template:
+        src: "{{ playbook_dir | dirname }}/template/crio/{{ item.src }}"
+        dest: /etc/crio/crio.conf.d/{{ item.dest }}
+        mode: "0644"
+      loop: "{{ crio_template_configs }}"
+      loop_control:
+        label: "{{ item.name }}"
+      notify: restart crio
+
+    # 设置registry
+    - name: Configure registry  for domestic network
+      ansible.builtin.template:
+        src: "{{ playbook_dir | dirname }}/template/containers/{{ item.src }}"
+        dest: /etc/containers/registries.conf.d/{{ item.dest }}
+        mode: "0644"
+      loop: "{{ registry_template_configs }}"
+      loop_control:
+        label: "{{ item.name }}"
+      notify: restart crio
+
+    # 为kubelet设置enable (等kubeadm init拉起来)
+    - name: Enabled kubelet service
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: true
+
+  handlers:
+    - name: Reload crio service
+      ansible.builtin.systemd:
+        name: crio
+        state: restarted
+        enabled: true
+      listen: restart crio

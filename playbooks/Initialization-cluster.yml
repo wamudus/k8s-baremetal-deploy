@@ -1,0 +1,47 @@
+---
+- name: Create kubernetes cluster
+  hosts: master
+  vars_files:
+    - "{{ playbook_dir }}/group_vars/user_information.yml"
+  tasks:
+    - name: Kubeadm init without kube-proxy
+    # ansible.builtin.command: "kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///var/run/crio/crio.sock --upload-certs --skip-phases=addon/kube-proxy"
+      ansible.builtin.command: kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///var/run/crio/crio.sock --upload-certs
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory if not exist
+      ansible.builtin.file:
+        path: /home/{{ item.name }}/.kube
+        state: directory
+        mode: "0755"
+        owner: "{{ item.name }}"
+        group: "{{ item.name }}"
+      loop: "{{ users }}"
+
+    - name: Create /root/.kube directory if not exist
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Kubernetes configuretion setup
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ item.name }}/.kube/config
+        remote_src: true
+        owner: "{{ item.name }}"
+        group: "{{ item.name }}"
+        mode: "0600"
+      loop: "{{ users }}"
+
+    - name: Kubernetes configuretion setup for root
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"

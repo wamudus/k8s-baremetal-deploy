@@ -1,0 +1,5 @@
+---
+users:
+  - name: k8s_admin
+    groups: Cluster_admin
+    password: KubernetesAdministrator@123

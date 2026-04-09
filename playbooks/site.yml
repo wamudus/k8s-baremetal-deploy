@@ -1,0 +1,18 @@
+---
+- name: Initialize the cluster environment
+  import_playbook: Environment_initialization.yml
+
+- name: Install and setup cluster dependces
+  import_playbook: Cluster_dependces_setup.yml
+
+- name: Create a privileged user
+  import_playbook: Manage-accounts.yml
+
+- name: Initialization kubernetes cluster
+  import_playbook: Initialization-cluster.yml
+
+- name: Install the Calico network plugin
+  import_playbook: Apply_calico_cni.yml
+
+- name: Join the Kubernetes cluster
+  import_playbook: Join_cluster.yml

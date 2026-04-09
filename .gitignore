@@ -1,0 +1,22 @@
+# Ignore actual inventory files with sensitive data
+inventory/hosts.ini
+
+# Ansible
+*.retry
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

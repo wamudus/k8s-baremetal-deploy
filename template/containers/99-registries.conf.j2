@@ -1,0 +1,10 @@
+# 注意：此配置仅影响 CRI-O 拉取的镜像，不包括 kubeadm 直接拉取的镜像
+unqualified-search-registries = ["quay.io"]
+
+# K8s 核心组件专用：pause 镜像走渡渡鸟（与 kubeadm 核心组件同源）
+[[registry]]
+ prefix = "registry.k8s.io"
+ location = "{{ k8s_core_repo }}"
+     [[registry.mirror]]
+     location = "{{ k8s_core_repo }}"
+     insecure = false

@@ -1,0 +1,35 @@
+---
+- name: Manage cluster administrator accounts and permissions
+  hosts: master
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/group_vars/user_information.yml"
+  tasks:
+    - name: Create Cluster_admin group if not exist
+      ansible.builtin.group:
+        name: Cluster_admin
+        state: present
+
+    - name: Create administrator accounts from user_information.yml
+      ansible.builtin.user:
+        name: "{{ item.name }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+        groups: "{{ item.groups }}"
+        update_password: on_create
+        append: true
+        create_home: true
+        shell: /bin/bash
+      loop: "{{ users }}"
+
+    - name: Cluster administrator permissions configuretion
+      ansible.builtin.copy:
+        content: |
+          %Cluster_admin ALL=(ALL) NOPASSWD:/usr/bin/kubectl get *
+          %Cluster_admin ALL=(ALL) /usr/bin/kubectl apply -f
+          %Cluster_admin ALL=(ALL) NOPASSWD:/usr/bin/kubectl logs *
+          %Cluster_admin ALL=(ALL) NOPASSWD:/usr/bin/kubectl describe *
+          %Cluster_admin ALL=(ALL) NOPASSWD:/usr/bin/yum,/usr/bin/dnf
+          %Cluster_admin ALL=(ALL) NOPASSWD:/usr/bin/systemctl
+        dest: /etc/sudoers.d/Cluster_admin
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s

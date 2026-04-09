@@ -1,0 +1,14 @@
+---
+profile: production
+
+exclude_paths:
+  - .cache/
+  - .github/
+
+skip_list:
+  - yaml[line-length]  # 你的注释有中文，行长度容易超
+  - command-instead-of-shell  # 你用了不少 shell 模块，暂时允许
+  - no-changed-when  # 提醒：你的 command 任务很多没标记 changed_when，建议逐步添加
+
+use_default_rules: true
+strict: true

@@ -1,0 +1,13 @@
+---
+collections:
+  - name: ansible.posix
+    version: ">=1.5.0"
+    source: https://galaxy.ansible.com
+  
+  - name: community.general
+    version: ">=7.0.0"
+    source: https://galaxy.ansible.com
+
+# 如果需要 Kubernetes 模块
+#  - name: kubernetes.core
+#    version: ">=2.4.0"

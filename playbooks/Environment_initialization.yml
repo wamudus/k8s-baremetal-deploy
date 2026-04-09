@@ -1,0 +1,104 @@
+---
+- name: Environment initialization
+  hosts: all
+  tasks:
+    # 设置主机名
+    - name: Set unique hostname based on inventory
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+      when: inventory_hostname != "localhost"
+
+    # 禁用防火墙服务
+    - name: Make sure a service unit is disabled
+      ansible.builtin.systemd:
+        state: stopped
+        name: firewalld
+        enabled: false
+      when: k8s_disable_firewalld | default(true)
+
+    # 关闭并禁用selinux
+    - name: Disable SELinux
+      ansible.posix.selinux:
+        state: disabled
+
+    - name: Stop SELinux immediately
+      ansible.builtin.command: setenforce 0
+      changed_when: true
+      failed_when: false
+
+    # 找出交换分区并关闭
+    - name: Find swap parted
+      ansible.builtin.shell: |
+        blkid -t TYPE=swap -s UUID -o value || \
+        lsblk -n -o UUID,FSTYPE | awk '$2=="swap"{print $1}'
+      register: swap_uuid
+      changed_when: false
+      ignore_errors: true
+
+    - name: Disable swap by UUID (reliable command method)
+      ansible.builtin.command: swapoff UUID={{ swap_uuid.stdout | trim }}
+      changed_when: true
+      failed_when: false
+      # ignore_errors: true
+      when: swap_uuid.stdout | trim | length > 0
+
+    - name: Comment out swap entries in fstab (comment whole line)
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: ^([^#]\S+\s+\S+\s+swap\s+.*)$
+        replace: "# \\1" # ← 在行首加#，注释整行
+        backup: true
+      when:
+        - k8s_disable_swap | default(true)
+        - swap_uuid.stdout | default("") | trim | length > 0
+
+    - name: Verify swap is actually off # ← 加在最后，作为守门员
+      ansible.builtin.command: swapon -s
+      register: swap_check
+      changed_when: false
+      failed_when: swap_check.stdout != "" # 如果有输出（swap还在），直接失败停止
+
+    # - name: DEBUG - Check swap detection result
+    #  ansible.builtin.debug:
+    #    msg: "swap_uuid.stdout is: '{{ swap_uuid.stdout }}', length: {{ swap_uuid.stdout | default('') | trim | length }}"
+    #  when: k8s_disable_swap | default(true)
+
+    # - name: DEBUG - Check swap disable flag
+    #  ansible.builtin.debug:
+    #    msg: "k8s_disable_swap is: {{ k8s_disable_swap | default('UNDEFINED') }}, bool value: {{ k8s_disable_swap | default(true) | bool }}"
+
+    # 加载网桥驱动
+    - name: Check if br_netfilter module is loaded
+      ansible.builtin.stat:
+        path: /sys/module/br_netfilter
+      register: br_netfilter_stat
+
+    - name: Load br_netfilter module
+      ansible.builtin.command: modprobe br_netfilter
+      when: not br_netfilter_stat.stat.exists
+      changed_when: true
+
+    - name: Ensure module persistence file exists
+      ansible.builtin.lineinfile:
+        path: /etc/modules-load.d/k8s.conf
+        line: "{{ item }}"
+        create: true
+        mode: "0644"
+      loop: "{{ k8s_modules_load }}"
+
+    # 调优网桥驱动开启路由转发
+    - name: Tuned apply
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: false
+        sysctl_file: "{{ k8s_sysctl_conf_path }}"
+      loop: "{{ k8s_sysctls }}"
+      notify: reload all sysctl
+
+  handlers:
+    - name: Apply sysctl k8s configuretion
+      ansible.builtin.command: sysctl -p "{{ k8s_sysctl_conf_path }}"
+      changed_when: false
+      listen: reload all sysctl

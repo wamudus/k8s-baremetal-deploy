@@ -1,0 +1,12 @@
+# 复制为 hosts.ini 后填入真实 IP
+[k8s_nodes]
+k8s-node-1 ansible_host=192.168.1.11 ansible_user=root
+k8s-node-2 ansible_host=192.168.1.12 ansible_user=rocky
+k8s-node-3 ansible_host=192.168.1.13 ansible_user=rocky
+
+[master]
+k8s-node-1
+
+[slave]
+k8s-node-2
+k8s-node-3

@@ -1,0 +1,33 @@
+---
+- name: Join kubernetes cluster
+  hosts: k8s_nodes
+  pre_tasks:
+    - name: Wait for calico to the ready (on master)
+      ansible.builtin.command: kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n calico-system --timeout=120s
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: "{{ groups['master'][0] }}"
+      retries: 5
+      delay: 10
+      until: calico_ready.rc == 0
+      register: calico_ready
+      ignore_errors: false
+      when: inventory_hostname in groups['slave']
+
+  tasks:
+    - name: Get cluster join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: token_rax
+      changed_when: false
+      run_once: true
+      when: inventory_hostname in groups['master']
+
+    - name: Kubeadm join command
+      ansible.builtin.command: "{{ hostvars[groups['master'][0]]['token_rax']['stdout'] }} --cri-socket=unix:///var/run/crio/crio.sock --node-name={{ inventory_hostname }}"
+      args:
+        creates: /etc/kubernetes/kubelet.conf
+      when:
+        - inventory_hostname in groups['slave']
+        - hostvars[groups['master'][0]]['token_rax'] is defined
+    #  debug:
+    #    msg: "{{ token_rax.stdout }} --cri-socket=unix:///var/run/crio/crio.sock --skip-phases=addon/kube-proxy"
